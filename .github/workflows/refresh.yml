@@ -1,0 +1,36 @@
+name: Refresh dashboard
+
+on:
+  schedule:
+    # 06:00 UTC, Tue–Sat (after most sources post their prior-day/week update)
+    - cron: "0 6 * * 2-6"
+  workflow_dispatch: {}   # lets you trigger a refresh manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Rebuild dashboard
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python rebuild.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add us_high_frequency_dashboard.html
+          git diff --cached --quiet || git commit -m "Auto-refresh dashboard data"
+          git push
